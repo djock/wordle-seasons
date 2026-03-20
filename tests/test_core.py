@@ -4,7 +4,7 @@ import pytest
 
 from core.constants import FAILED_WORDLE_SCORE
 from core.models import WordleParsingError, ValidationError
-from core.parsers import parse_wordle_content, calculate_tetris_bonus, calculate_color_counts
+from core.parsers import parse_wordle_content, calculate_tetris_bonus, calculate_color_counts, normalize_grid
 from core.validators import validate_wordle_id, validate_score, validate_grid
 
 
@@ -39,6 +39,57 @@ def test_parse_wordle_content_missing_grid():
 def test_parse_wordle_content_missing_keyword():
     with pytest.raises(WordleParsingError):
         parse_wordle_content("Game 1234 4/6\n🟩🟩🟩🟩🟩")
+
+
+# ============================================================================
+# normalize_grid / alternate color schemes
+# ============================================================================
+
+def test_normalize_grid_white_squares():
+    """White squares (⬜) should be normalized to black (⬛)."""
+    grid = [['⬜', '🟨', '⬜', '🟩', '⬜']]
+    result = normalize_grid(grid)
+    assert result == [['⬛', '🟨', '⬛', '🟩', '⬛']]
+
+
+def test_normalize_grid_high_contrast():
+    """High contrast mode: blue (🟦) → yellow, orange (🟧) → green."""
+    grid = [
+        ['⬛', '⬛', '⬛', '🟦', '⬛'],
+        ['🟧', '🟧', '🟧', '🟧', '🟧'],
+    ]
+    result = normalize_grid(grid)
+    assert result == [
+        ['⬛', '⬛', '⬛', '🟨', '⬛'],
+        ['🟩', '🟩', '🟩', '🟩', '🟩'],
+    ]
+
+
+def test_normalize_grid_no_change():
+    """Canonical emojis should pass through unchanged."""
+    grid = [['🟩', '🟨', '⬛', '🟩', '⬛']]
+    result = normalize_grid(grid)
+    assert result == grid
+
+
+def test_parse_wordle_content_white_squares():
+    """parse_wordle_content should accept white squares as black."""
+    content = "Wordle 1,735 5/6\n⬜⬜🟨⬜⬜\n⬜🟩⬜⬜⬜\n🟨🟩⬜⬜🟨\n⬜🟩🟩🟨⬜\n🟩🟩🟩🟩🟩"
+    result = parse_wordle_content(content)
+    assert result.wordle_id == 1735
+    assert result.score == 5
+    assert result.grid[0] == ['⬛', '⬛', '🟨', '⬛', '⬛']
+
+
+def test_parse_wordle_content_high_contrast():
+    """parse_wordle_content should accept high contrast mode (blue/orange)."""
+    content = "Wordle 1,735 5/6*\n⬛⬛⬛🟦⬛\n🟦⬛🟦⬛⬛\n🟦⬛⬛🟦⬛\n⬛🟧🟦🟦⬛\n🟧🟧🟧🟧🟧"
+    result = parse_wordle_content(content)
+    assert result.wordle_id == 1735
+    assert result.score == 5
+    assert result.grid[4] == ['🟩', '🟩', '🟩', '🟩', '🟩']
+    assert result.grid[3][1] == '🟩'  # orange → green
+    assert result.grid[0][3] == '🟨'  # blue → yellow
 
 
 # ============================================================================

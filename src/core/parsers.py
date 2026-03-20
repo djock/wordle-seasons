@@ -8,6 +8,21 @@ from core.validators import validate_wordle_id, validate_score, validate_grid
 logger = logging.getLogger(__name__)
 
 
+EMOJI_ALIASES = {
+	'⬜': '⬛',  # white square → black
+	'🟦': '🟨',  # blue square → yellow (high contrast)
+	'🟧': '🟩',  # orange square → green (high contrast)
+}
+
+
+def normalize_grid(grid: List[List[str]]) -> List[List[str]]:
+	"""Replace alternate color-scheme emojis with canonical ones."""
+	return [
+		[EMOJI_ALIASES.get(cell, cell) for cell in row]
+		for row in grid
+	]
+
+
 def parse_wordle_content(content: str) -> ParsedWordleContent:
 	"""
 	Parse a raw Discord Wordle message (no player-name prefix).
@@ -35,7 +50,7 @@ def parse_wordle_content(content: str) -> ParsedWordleContent:
 		if not rows:
 			raise WordleParsingError("Missing grid data")
 
-		grid = [list(row) for row in rows]
+		grid = normalize_grid([list(row) for row in rows])
 
 		wordle_id = validate_wordle_id(wordle_id_raw)
 		score = validate_score(score_raw)
