@@ -1,0 +1,38 @@
+name: wordlebot-seasons
+
+services:
+  prod:
+    build: .
+    restart: always
+    container_name: wordlebot_seasons_prod
+    environment:
+      - STAGE=prod
+      - DB_PATH=/data/wordle_seasons.db
+    env_file:
+      - .env.prod
+    volumes:
+      - seasons_data:/data
+
+  dev:
+    build: .
+    container_name: wordlebot_seasons_dev
+    environment:
+      - STAGE=dev
+      - DB_PATH=/data/wordle_seasons.db
+    env_file:
+      - .env.dev
+    volumes:
+      - .:/app
+      - seasons_data:/data
+
+  tests:
+    build: .
+    command:
+      - /bin/sh
+      - -c
+      - pytest tests/ -v
+    volumes:
+      - .:/app
+
+volumes:
+  seasons_data:

@@ -1,0 +1,47 @@
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Virtual environment
+venv/
+env/
+.venv/
+.env/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Environment / secrets
+.env
+.env.prod
+.env.dev
+.env.local
+*.env
+
+# Logs and databases
+*.log
+*.db
+*.sqlite
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Test / coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Claude Code
+.claude/settings.local.json
