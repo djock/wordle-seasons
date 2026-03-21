@@ -82,7 +82,7 @@ def update_score(player, message_content: str, season) -> UpdateResult:
 
     except (WordleParsingError, ValidationError) as e:
         logger.error(f"Parsing/validation error for {player_name}: {e}")
-        return UpdateResult(message=localizations.error_parsing(player_name), wordle_id=None)
+        return UpdateResult(message=localizations.error_parsing(player_name, str(e)), wordle_id=None)
     except Exception as e:
         logger.exception(f"Unexpected error in update_score for {player_name}: {e}")
         return UpdateResult(message=localizations.error_recording_result(player_name), wordle_id=None)

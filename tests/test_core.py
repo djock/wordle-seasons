@@ -2,6 +2,7 @@
 import copy
 import pytest
 
+from core import localizations
 from core.constants import FAILED_WORDLE_SCORE
 from core.models import WordleParsingError, ValidationError
 from core.parsers import parse_wordle_content, calculate_tetris_bonus, calculate_color_counts, normalize_grid
@@ -218,6 +219,24 @@ def test_validate_grid_empty():
 def test_validate_grid_wrong_width():
     with pytest.raises(ValidationError):
         validate_grid([['🟩', '🟨', '⬛']])
+
+
+def test_parsing_issue_detail_for_wrong_row_width():
+    detail = localizations.parsing_issue_detail("Row 0 has 6 cells, expected 5")
+    assert "row 1 has 6 squares, but I expected 5" in detail
+    assert "invisible variation character" in detail
+
+
+def test_parsing_issue_detail_for_invalid_cell():
+    detail = localizations.parsing_issue_detail("Invalid cell value at (0, 3): ⬜️")
+    assert "row 1, column 4 contains an unsupported symbol" in detail
+    assert "I can read green, yellow, and black squares" in detail
+
+
+def test_error_parsing_includes_specific_reason():
+    message = localizations.error_parsing("Ionut", "Missing grid data")
+    assert "I couldn't record that Wordle result because I found the header, but the result grid is missing." in message
+    assert "Please copy the full Wordle share and try again." in message
 
 
 def test_validate_grid_invalid_cell():
