@@ -1,7 +1,3 @@
-# top.gg Long Description
-
----
-
 ## Turn your Wordle habit into a season-long competition
 
 **Wordle Seasons Bot** brings structured, competitive Wordle seasons to any Discord channel. No spreadsheets, no manual tracking — just paste your daily Wordle result and let the bot handle the rest.
