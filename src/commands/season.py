@@ -137,16 +137,18 @@ class SeasonGroup(app_commands.Group, name="season", description="Manage Wordle 
             f"{prize_line}{tetris_line}{penalty_line}{recurring_line}"
         )
 
-    @app_commands.command(name="update", description="Update the active season's name or prize")
+    @app_commands.command(name="update", description="Update the active season's name, prize, or number")
     @app_commands.describe(
         name="New base name for the season",
         prize="New prize for the winner",
+        number="Season number (e.g. 3 for Season #3)",
     )
     async def update(
         self,
         interaction: discord.Interaction,
         name: str = None,
         prize: str = None,
+        number: int = None,
     ):
         season = db_repo.get_active_season(interaction.channel_id)
         if not season:
@@ -161,17 +163,17 @@ class SeasonGroup(app_commands.Group, name="season", description="Manage Wordle 
             )
             return
 
-        if name is None and prize is None:
+        if name is None and prize is None and number is None:
             await interaction.response.send_message(
-                "Provide at least one of `name` or `prize` to update.", ephemeral=True
+                "Provide at least one of `name`, `prize`, or `number` to update.", ephemeral=True
             )
             return
 
-        db_repo.update_season(season['id'], name=name, prize=prize)
+        db_repo.update_season(season['id'], name=name, prize=prize, season_number=number)
         updated = db_repo.get_season(season['id'])
 
         changes = []
-        if name is not None:
+        if name is not None or number is not None:
             changes.append(f"📛 Name: **{get_season_display_name(updated)}**")
         if prize is not None:
             changes.append(f"🎁 Prize: **{prize}**" if prize else "🎁 Prize: removed")
