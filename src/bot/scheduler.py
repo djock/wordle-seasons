@@ -127,6 +127,7 @@ async def _renew_season(season, previous_end_id: int, previous_players: list, ch
     new_start_wordle_id = previous_end_id + 1
     start_date = now.isoformat()
     end_date = (now + timedelta(days=season['duration_days'])).isoformat()
+    new_season_number = season['season_number'] + 1
 
     new_season_id = db_repo.create_season(
         channel_id=season['channel_id'],
@@ -143,18 +144,22 @@ async def _renew_season(season, previous_end_id: int, previous_players: list, ch
         start_date=start_date,
         end_date=end_date,
         recurring=True,
+        season_number=new_season_number,
     )
 
     for player in previous_players:
         db_repo.register_player(new_season_id, player['discord_user_id'], player['discord_username'])
 
     end_display = (now + timedelta(days=season['duration_days'])).strftime("%Y-%m-%d")
-    logger.info(f"Recurring season '{season['name']}' renewed, new season ID: {new_season_id}")
+    new_season = db_repo.get_season(new_season_id)
+    display_name = utils.get_season_display_name(new_season)
+    logger.info(f"Recurring season '{display_name}' renewed, new season ID: {new_season_id}")
 
     if channel:
         await channel.send(
-            f"🔄 **{season['name']}** has been automatically renewed!\n"
+            f"🔄 **{display_name}** has been automatically renewed!\n"
             f"📅 New season runs for **{season['duration_days']} days** (ends {end_display})\n"
             f"📊 Starting from Wordle **#{new_start_wordle_id}**\n"
-            f"All previous players have been re-registered. Good luck! 🍀"
+            f"All previous players have been re-registered. Good luck! 🍀\n"
+            f"💰 To set a new prize, use `/season update prize:...`"
         )

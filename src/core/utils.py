@@ -55,3 +55,8 @@ def get_season_end_id(season) -> int:
 def format_mentions(players) -> str:
     """Build a space-separated Discord mention string for a list of players."""
     return " ".join(f"<@{p['discord_user_id']}>" for p in players)
+
+
+def get_season_display_name(season) -> str:
+    """Return the season name with its number, e.g. 'Office Wars (#2)'."""
+    return f"{season['name']} (#{season['season_number']})"

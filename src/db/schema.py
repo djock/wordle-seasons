@@ -34,7 +34,8 @@ def init_db():
                 end_date TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'active',
                 winner_id INTEGER,
-                recurring INTEGER NOT NULL DEFAULT 0
+                recurring INTEGER NOT NULL DEFAULT 0,
+                season_number INTEGER NOT NULL DEFAULT 1
             );
 
             CREATE TABLE IF NOT EXISTS players (
@@ -65,6 +66,11 @@ def init_db():
         try:
             conn.execute("ALTER TABLE seasons ADD COLUMN recurring INTEGER NOT NULL DEFAULT 0")
             logger.info("Migration: added 'recurring' column to seasons")
+        except Exception:
+            pass  # column already exists
+        try:
+            conn.execute("ALTER TABLE seasons ADD COLUMN season_number INTEGER NOT NULL DEFAULT 1")
+            logger.info("Migration: added 'season_number' column to seasons")
         except Exception:
             pass  # column already exists
     logger.info("Database initialized")

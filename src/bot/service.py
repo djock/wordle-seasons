@@ -5,6 +5,7 @@ from datetime import datetime
 
 import config
 from core import localizations, utils
+from core.utils import get_season_display_name
 from core.models import PlayerScore, UpdateResult, WordleParsingError, ValidationError
 from core.parsers import parse_wordle_content, calculate_tetris_bonus, calculate_color_counts
 import db.repository as db_repo
@@ -108,16 +109,17 @@ def build_leaderboard_message(season, player_scores: List[PlayerScore],
                                wordle_id: Optional[int] = None,
                                is_final: bool = False) -> str:
     """Build a leaderboard message from a pre-sorted player scores list."""
+    display_name = get_season_display_name(season)
     if not player_scores:
-        return f"No players registered for **{season['name']}** yet."
+        return f"No players registered for **{display_name}** yet."
 
     if wordle_id is not None:
         day_in_season = wordle_id - season['start_wordle_id'] + 1
         title = localizations.leaderboard_title(
-            season['name'], day_in_season, season['duration_days']
+            display_name, day_in_season, season['duration_days']
         )
     else:
-        title = f"\n**{season['name']} Leaderboard**"
+        title = f"\n**{display_name} Leaderboard**"
 
     medals = ["🥇", "🥈", "🥉"]
     message = title
