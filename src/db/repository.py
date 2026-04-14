@@ -30,20 +30,41 @@ def get_season(season_id: int):
 def create_season(channel_id, guild_id, creator_id, name, prize, duration_days,
                   missed_day_penalty, tetris_bonus_enabled, reminders_enabled,
                   auto_penalty_enabled, start_wordle_id, start_date, end_date,
-                  recurring=False) -> int:
+                  recurring=False, season_number: int = 1) -> int:
     with get_connection() as conn:
         cur = conn.execute(
             """INSERT INTO seasons
                (channel_id, guild_id, creator_id, name, prize, duration_days,
                 missed_day_penalty, tetris_bonus_enabled, reminders_enabled,
-                auto_penalty_enabled, start_wordle_id, start_date, end_date, status, recurring)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                auto_penalty_enabled, start_wordle_id, start_date, end_date, status, recurring,
+                season_number)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (channel_id, guild_id, creator_id, name, prize, duration_days,
              missed_day_penalty, int(tetris_bonus_enabled), int(reminders_enabled),
              int(auto_penalty_enabled), start_wordle_id, start_date, end_date, STATUS_ACTIVE,
-             int(recurring))
+             int(recurring), season_number)
         )
         return cur.lastrowid
+
+
+def update_season(season_id: int, name: str = None, prize: str = None):
+    """Update the name and/or prize of an existing season."""
+    fields = []
+    values = []
+    if name is not None:
+        fields.append("name = ?")
+        values.append(name)
+    if prize is not None:
+        fields.append("prize = ?")
+        values.append(prize)
+    if not fields:
+        return
+    values.append(season_id)
+    with get_connection() as conn:
+        conn.execute(
+            f"UPDATE seasons SET {', '.join(fields)} WHERE id = ?",
+            values
+        )
 
 
 def update_season_status(season_id: int, status: str, winner_id: Optional[int] = None):

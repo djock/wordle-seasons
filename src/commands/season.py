@@ -3,6 +3,7 @@ from discord import app_commands
 from datetime import datetime, timedelta
 
 from core import utils
+from core.utils import get_season_display_name
 import db.repository as db_repo
 
 
@@ -12,6 +13,7 @@ class SeasonGroup(app_commands.Group, name="season", description="Manage Wordle 
     @app_commands.describe(
         name="Season name, e.g. 'Summer 2025'",
         days="Duration in number of days",
+        number="Season number (default: 1). Auto-increments on each renewal.",
         prize="Prize for the winner (optional)",
         missed_penalty="Points added for missed days (default: 10)",
         tetris="Enable tetris bonus mechanic (default: true)",
@@ -24,6 +26,7 @@ class SeasonGroup(app_commands.Group, name="season", description="Manage Wordle 
         interaction: discord.Interaction,
         name: str,
         days: int,
+        number: int = 1,
         prize: str = None,
         missed_penalty: int = 10,
         tetris: bool = True,
@@ -54,7 +57,7 @@ class SeasonGroup(app_commands.Group, name="season", description="Manage Wordle 
         start_date = now.isoformat()
         end_date = (now + timedelta(days=days)).isoformat()
 
-        db_repo.create_season(
+        season_id = db_repo.create_season(
             channel_id=channel_id,
             guild_id=guild_id,
             creator_id=interaction.user.id,
@@ -69,15 +72,18 @@ class SeasonGroup(app_commands.Group, name="season", description="Manage Wordle 
             start_date=start_date,
             end_date=end_date,
             recurring=recurring,
+            season_number=number,
         )
 
+        season = db_repo.get_season(season_id)
+        display_name = get_season_display_name(season)
         prize_line = f"\n🎁 Prize: **{prize}**" if prize else ""
         tetris_line = "" if tetris else "\n⚠️ Tetris bonus disabled"
         recurring_line = "\n🔄 Recurring: new season starts automatically when this one ends" if recurring else ""
         end_display = (now + timedelta(days=days)).strftime("%Y-%m-%d")
 
         await interaction.response.send_message(
-            f"🎮 Season **{name}** has started!\n"
+            f"🎮 Season **{display_name}** has started!\n"
             f"📅 Duration: **{days} days** (ends {end_display})\n"
             f"📊 Starting from Wordle **#{today_wordle_id}**"
             f"{prize_line}{tetris_line}{recurring_line}\n\n"
@@ -101,7 +107,7 @@ class SeasonGroup(app_commands.Group, name="season", description="Manage Wordle 
 
         db_repo.update_season_status(season['id'], 'cancelled')
         await interaction.response.send_message(
-            f"❌ Season **{season['name']}** has been cancelled."
+            f"❌ Season **{get_season_display_name(season)}** has been cancelled."
         )
 
     @app_commands.command(name="info", description="Show the active season details")
@@ -123,10 +129,53 @@ class SeasonGroup(app_commands.Group, name="season", description="Manage Wordle 
         recurring_line = "\n🔄 Recurring: yes" if season['recurring'] else ""
 
         await interaction.response.send_message(
-            f"**{season['name']}**\n"
+            f"**{get_season_display_name(season)}**\n"
             f"📅 Day {day_in_season} / {season['duration_days']} "
             f"(Wordle #{season['start_wordle_id']}–"
             f"#{utils.get_season_end_id(season)})\n"
             f"👥 Players: {len(players)}"
             f"{prize_line}{tetris_line}{penalty_line}{recurring_line}"
+        )
+
+    @app_commands.command(name="update", description="Update the active season's name or prize")
+    @app_commands.describe(
+        name="New base name for the season",
+        prize="New prize for the winner",
+    )
+    async def update(
+        self,
+        interaction: discord.Interaction,
+        name: str = None,
+        prize: str = None,
+    ):
+        season = db_repo.get_active_season(interaction.channel_id)
+        if not season:
+            await interaction.response.send_message(
+                "No active season in this channel.", ephemeral=True
+            )
+            return
+
+        if season['creator_id'] != interaction.user.id:
+            await interaction.response.send_message(
+                "Only the person who created the season can update it.", ephemeral=True
+            )
+            return
+
+        if name is None and prize is None:
+            await interaction.response.send_message(
+                "Provide at least one of `name` or `prize` to update.", ephemeral=True
+            )
+            return
+
+        db_repo.update_season(season['id'], name=name, prize=prize)
+        updated = db_repo.get_season(season['id'])
+
+        changes = []
+        if name is not None:
+            changes.append(f"📛 Name: **{get_season_display_name(updated)}**")
+        if prize is not None:
+            changes.append(f"🎁 Prize: **{prize}**" if prize else "🎁 Prize: removed")
+
+        await interaction.response.send_message(
+            "✅ Season updated!\n" + "\n".join(changes)
         )

@@ -3,6 +3,7 @@ from discord import app_commands
 
 from core import utils
 from core.constants import STATUS_COMPLETED
+from core.utils import get_season_display_name
 from bot import service as bot_service
 import db.repository as db_repo
 
@@ -39,7 +40,7 @@ async def history(interaction: discord.Interaction):
         winner_text = f" — 🏆 <@{season['winner_id']}>" if season['winner_id'] else ""
         prize_text = f" • 🎁 {season['prize']}" if season['prize'] else ""
         lines.append(
-            f"{status_icon} **{season['name']}** "
+            f"{status_icon} **{get_season_display_name(season)}** "
             f"({season['duration_days']}d){winner_text}{prize_text}"
         )
 
