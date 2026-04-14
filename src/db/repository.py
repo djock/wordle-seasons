@@ -47,8 +47,8 @@ def create_season(channel_id, guild_id, creator_id, name, prize, duration_days,
         return cur.lastrowid
 
 
-def update_season(season_id: int, name: str = None, prize: str = None):
-    """Update the name and/or prize of an existing season."""
+def update_season(season_id: int, name: str = None, prize: str = None, season_number: int = None):
+    """Update the name, prize, and/or season number of an existing season."""
     fields = []
     values = []
     if name is not None:
@@ -57,6 +57,9 @@ def update_season(season_id: int, name: str = None, prize: str = None):
     if prize is not None:
         fields.append("prize = ?")
         values.append(prize)
+    if season_number is not None:
+        fields.append("season_number = ?")
+        values.append(season_number)
     if not fields:
         return
     values.append(season_id)
