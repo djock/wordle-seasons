@@ -14,6 +14,7 @@ import db.repository as db_repo
 from commands.season import SeasonGroup
 from commands.player import register, leave
 from commands.leaderboard import leaderboard, history
+from commands.help import help_command
 
 os.environ.setdefault("TZ", "Europe/Bucharest")
 if hasattr(time, "tzset"):
@@ -38,6 +39,7 @@ async def setup_hook():
     bot.tree.add_command(leave)
     bot.tree.add_command(leaderboard)
     bot.tree.add_command(history)
+    bot.tree.add_command(help_command)
     try:
         synced = await bot.tree.sync()
         logger.info(f"Synced {len(synced)} slash commands")
