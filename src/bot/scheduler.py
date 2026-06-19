@@ -13,20 +13,28 @@ import db.repository as db_repo
 logger = logging.getLogger(__name__)
 
 _client = None
+_started = False
+_start_lock = threading.Lock()
 
 
 def start(client):
-    global _client
+    global _client, _started
     _client = client
 
-    schedule.every().day.at("20:00").do(
-        lambda: asyncio.run_coroutine_threadsafe(run_reminders(), _client.loop)
-    )
-    schedule.every().day.at("00:00").do(
-        lambda: asyncio.run_coroutine_threadsafe(run_midnight_jobs(), _client.loop)
-    )
-    threading.Thread(target=_run_loop, daemon=True).start()
-    logger.info("Scheduler started")
+    with _start_lock:
+        if _started:
+            logger.info("Scheduler already started")
+            return
+
+        schedule.every().day.at("20:00").do(
+            lambda: asyncio.run_coroutine_threadsafe(run_reminders(), _client.loop)
+        )
+        schedule.every().day.at("00:00").do(
+            lambda: asyncio.run_coroutine_threadsafe(run_midnight_jobs(), _client.loop)
+        )
+        threading.Thread(target=_run_loop, daemon=True).start()
+        _started = True
+        logger.info("Scheduler started")
 
 
 def _run_loop():
