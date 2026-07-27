@@ -1,6 +1,7 @@
 import discord
 from discord import app_commands
 from datetime import datetime, timedelta
+import sqlite3
 
 from core import utils
 from core.utils import get_season_display_name
@@ -37,6 +38,15 @@ class SeasonGroup(app_commands.Group, name="season", description="Manage Wordle 
         channel_id = interaction.channel_id
         guild_id = interaction.guild_id
 
+        if guild_id is None or not getattr(
+                getattr(interaction.user, 'guild_permissions', None),
+                'manage_guild', False):
+            await interaction.response.send_message(
+                "Only server members with Manage Server permission can create seasons.",
+                ephemeral=True,
+            )
+            return
+
         existing = db_repo.get_active_season(channel_id)
         if existing:
             await interaction.response.send_message(
@@ -52,35 +62,66 @@ class SeasonGroup(app_commands.Group, name="season", description="Manage Wordle 
             )
             return
 
+        name = name.strip()
+        if not name or len(name) > 100:
+            await interaction.response.send_message(
+                "Season name must be between 1 and 100 characters.", ephemeral=True
+            )
+            return
+        if not 0 <= missed_penalty <= 100:
+            await interaction.response.send_message(
+                "Missed-day penalty must be between 0 and 100 points.", ephemeral=True
+            )
+            return
+        if not 1 <= number <= 10000:
+            await interaction.response.send_message(
+                "Season number must be between 1 and 10,000.", ephemeral=True
+            )
+            return
+
+        prize = prize.strip() if prize else None
+        if prize and len(prize) > 1000:
+            await interaction.response.send_message(
+                "Prize must be 1,000 characters or fewer.", ephemeral=True
+            )
+            return
+
         today_wordle_id = utils.calculate_wordle_id_of_the_day()
         now = datetime.now(utils.ROMANIA_TZ)
         start_date = now.isoformat()
-        end_date = (now + timedelta(days=days)).isoformat()
+        end_date = (now + timedelta(days=days - 1)).isoformat()
 
-        season_id = db_repo.create_season(
-            channel_id=channel_id,
-            guild_id=guild_id,
-            creator_id=interaction.user.id,
-            name=name,
-            prize=prize,
-            duration_days=days,
-            missed_day_penalty=missed_penalty,
-            tetris_bonus_enabled=tetris,
-            reminders_enabled=reminders,
-            auto_penalty_enabled=auto_penalty,
-            start_wordle_id=today_wordle_id,
-            start_date=start_date,
-            end_date=end_date,
-            recurring=recurring,
-            season_number=number,
-        )
+        try:
+            season_id = db_repo.create_season(
+                channel_id=channel_id,
+                guild_id=guild_id,
+                creator_id=interaction.user.id,
+                name=name,
+                prize=prize,
+                duration_days=days,
+                missed_day_penalty=missed_penalty,
+                tetris_bonus_enabled=tetris,
+                reminders_enabled=reminders,
+                auto_penalty_enabled=auto_penalty,
+                start_wordle_id=today_wordle_id,
+                start_date=start_date,
+                end_date=end_date,
+                recurring=recurring,
+                season_number=number,
+            )
+        except sqlite3.IntegrityError:
+            await interaction.response.send_message(
+                "A season was created in this channel at the same time. Please try again.",
+                ephemeral=True,
+            )
+            return
 
         season = db_repo.get_season(season_id)
         display_name = get_season_display_name(season)
         prize_line = f"\n🎁 Prize: **{prize}**" if prize else ""
         tetris_line = "" if tetris else "\n⚠️ Tetris bonus disabled"
         recurring_line = "\n🔄 Recurring: new season starts automatically when this one ends" if recurring else ""
-        end_display = (now + timedelta(days=days)).strftime("%Y-%m-%d")
+        end_display = (now + timedelta(days=days - 1)).strftime("%Y-%m-%d")
 
         await interaction.response.send_message(
             f"🎮 Season **{display_name}** has started!\n"
@@ -99,7 +140,11 @@ class SeasonGroup(app_commands.Group, name="season", description="Manage Wordle 
             )
             return
 
-        if season['creator_id'] != interaction.user.id:
+        is_manager = getattr(
+            getattr(interaction.user, 'guild_permissions', None),
+            'manage_guild', False
+        )
+        if season['creator_id'] != interaction.user.id and not is_manager:
             await interaction.response.send_message(
                 "Only the person who created the season can cancel it.", ephemeral=True
             )
@@ -157,7 +202,11 @@ class SeasonGroup(app_commands.Group, name="season", description="Manage Wordle 
             )
             return
 
-        if season['creator_id'] != interaction.user.id:
+        is_manager = getattr(
+            getattr(interaction.user, 'guild_permissions', None),
+            'manage_guild', False
+        )
+        if season['creator_id'] != interaction.user.id and not is_manager:
             await interaction.response.send_message(
                 "Only the person who created the season can update it.", ephemeral=True
             )
@@ -166,6 +215,26 @@ class SeasonGroup(app_commands.Group, name="season", description="Manage Wordle 
         if name is None and prize is None and number is None:
             await interaction.response.send_message(
                 "Provide at least one of `name`, `prize`, or `number` to update.", ephemeral=True
+            )
+            return
+
+        if name is not None:
+            name = name.strip()
+            if not name or len(name) > 100:
+                await interaction.response.send_message(
+                    "Season name must be between 1 and 100 characters.", ephemeral=True
+                )
+                return
+        if prize is not None:
+            prize = prize.strip() or None
+            if prize and len(prize) > 1000:
+                await interaction.response.send_message(
+                    "Prize must be 1,000 characters or fewer.", ephemeral=True
+                )
+                return
+        if number is not None and not 1 <= number <= 10000:
+            await interaction.response.send_message(
+                "Season number must be between 1 and 10,000.", ephemeral=True
             )
             return
 

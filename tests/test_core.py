@@ -7,6 +7,7 @@ from core.constants import FAILED_WORDLE_SCORE
 from core.models import WordleParsingError, ValidationError
 from core.parsers import parse_wordle_content, calculate_tetris_bonus, calculate_color_counts, normalize_grid
 from core.validators import validate_wordle_id, validate_score, validate_grid
+from core.utils import split_message
 
 
 # ============================================================================
@@ -242,3 +243,15 @@ def test_error_parsing_includes_specific_reason():
 def test_validate_grid_invalid_cell():
     with pytest.raises(ValidationError):
         validate_grid([['🟩', '🟨', '⬛', '🟩', '❌']])
+
+
+def test_split_message_respects_discord_limit():
+    chunks = split_message("\n".join(f"row {i}" for i in range(1000)))
+    assert len(chunks) > 1
+    assert all(len(chunk) <= 1900 for chunk in chunks)
+    assert "row 0" in chunks[0]
+
+
+def test_split_message_splits_long_single_line():
+    chunks = split_message("x" * 4000)
+    assert [len(chunk) for chunk in chunks] == [1900, 1900, 200]

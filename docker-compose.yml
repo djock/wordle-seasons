@@ -21,8 +21,10 @@ services:
       - DB_PATH=/data/wordle_seasons.db
     env_file:
       - .env.dev
+    working_dir: /workspace
+    command: ["python", "src/app.py"]
     volumes:
-      - .:/app
+      - .:/workspace
       - seasons_data:/data
 
   tests:
@@ -31,8 +33,9 @@ services:
       - /bin/sh
       - -c
       - pytest tests/ -v
+    working_dir: /workspace
     volumes:
-      - .:/app
+      - .:/workspace
 
 volumes:
   seasons_data:

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def get_active_season(channel_id: int):
     with get_connection() as conn:
         return conn.execute(
-            "SELECT * FROM seasons WHERE channel_id = ? AND status = ?",
+            "SELECT * FROM seasons WHERE channel_id = ? AND status = ? ORDER BY id DESC LIMIT 1",
             (channel_id, STATUS_ACTIVE)
         ).fetchone()
 
@@ -103,13 +103,15 @@ def get_player(season_id: int, discord_user_id: int):
         ).fetchone()
 
 
-def register_player(season_id: int, discord_user_id: int, discord_username: str) -> int:
+def register_player(season_id: int, discord_user_id: int, discord_username: str,
+                    joined_wordle_id: Optional[int] = None) -> int:
     with get_connection() as conn:
         cur = conn.execute(
-            "INSERT INTO players (season_id, discord_user_id, discord_username, joined_at) "
-            "VALUES (?, ?, ?, ?)",
+            "INSERT INTO players "
+            "(season_id, discord_user_id, discord_username, joined_at, joined_wordle_id) "
+            "VALUES (?, ?, ?, ?, ?)",
             (season_id, discord_user_id, discord_username,
-             datetime.now(utils.ROMANIA_TZ).isoformat())
+             datetime.now(utils.ROMANIA_TZ).isoformat(), joined_wordle_id)
         )
         return cur.lastrowid
 

@@ -56,7 +56,7 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
-    if message.author.id == config.WORDLE_BOT_ID:
+    if message.author.bot or message.author.id == config.WORDLE_BOT_ID:
         return
 
     if 'Wordle' not in message.content:
@@ -76,7 +76,8 @@ async def on_message(message):
         return
 
     result = bot_service.update_score(player, message.content, season)
-    await message.channel.send(result.message)
+    for chunk in utils.split_message(result.message):
+        await message.channel.send(chunk)
 
     if result.wordle_id is not None:
         wordle_id = result.wordle_id
@@ -87,7 +88,8 @@ async def on_message(message):
                 await scheduler.finalize_season(season, message.channel)
             else:
                 lb_msg = bot_service.get_leaderboard(season, wordle_id, is_final=False)
-                await message.channel.send(lb_msg)
+                for chunk in utils.split_message(lb_msg):
+                    await message.channel.send(chunk)
 
 
 if __name__ == '__main__':

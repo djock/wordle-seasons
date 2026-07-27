@@ -13,6 +13,18 @@ import db.repository as db_repo
 logger = logging.getLogger(__name__)
 
 
+def _player_start_wordle_id(player, season) -> int:
+    """Return a player's first eligible Wordle, including legacy rows."""
+    keys = player.keys() if hasattr(player, 'keys') else ()
+    joined = player['joined_wordle_id'] if 'joined_wordle_id' in keys else None
+    return joined or season['start_wordle_id']
+
+
+def _season_auto_penalty_enabled(season) -> bool:
+    keys = season.keys() if hasattr(season, 'keys') else ()
+    return season['auto_penalty_enabled'] if 'auto_penalty_enabled' in keys else True
+
+
 def update_score(player, message_content: str, season) -> UpdateResult:
     """Process a Wordle submission from a registered player."""
     player_name = player['discord_username']
@@ -33,6 +45,11 @@ def update_score(player, message_content: str, season) -> UpdateResult:
                         f"(#{season_start}–#{season_end}).",
                 wordle_id=None
             )
+        if wordle_id > utils.calculate_wordle_id_of_the_day():
+            return UpdateResult(
+                message=f"Wordle #{wordle_id} has not been published yet.",
+                wordle_id=None
+            )
 
         existing = db_repo.get_score(season_id, player_id, wordle_id)
         if existing and not existing['is_auto_penalty']:
@@ -48,11 +65,12 @@ def update_score(player, message_content: str, season) -> UpdateResult:
 
         # Backfill any missed days before this submission — batch to avoid N+1
         missed_ids = []
-        if wordle_id > season_start:
+        backfill_start = max(season_start, _player_start_wordle_id(player, season))
+        if _season_auto_penalty_enabled(season) and wordle_id > backfill_start:
             existing_ids = db_repo.get_existing_wordle_ids(
-                season_id, player_id, season_start, wordle_id - 1
+                season_id, player_id, backfill_start, wordle_id - 1
             )
-            missed_ids = [i for i in range(season_start, wordle_id) if i not in existing_ids]
+            missed_ids = [i for i in range(backfill_start, wordle_id) if i not in existing_ids]
             if missed_ids:
                 db_repo.batch_insert_penalty_scores(
                     season_id, player_id, missed_ids, season['missed_day_penalty']
@@ -148,6 +166,8 @@ def get_leaderboard(season, wordle_id: Optional[int] = None, is_final: bool = Fa
 def all_players_submitted(season, wordle_id: int) -> bool:
     """Return True if every registered player has submitted for this wordle_id."""
     players = db_repo.get_season_players(season['id'])
+    players = [p for p in players
+               if _player_start_wordle_id(p, season) <= wordle_id]
     if not players:
         return False
     submitted_ids = {s['player_id'] for s in db_repo.get_scores_for_wordle_id(season['id'], wordle_id)}
@@ -158,4 +178,6 @@ def get_missing_players(season, wordle_id: int) -> list:
     """Return players who haven't submitted for wordle_id."""
     players = db_repo.get_season_players(season['id'])
     submitted_ids = {s['player_id'] for s in db_repo.get_scores_for_wordle_id(season['id'], wordle_id)}
-    return [p for p in players if p['id'] not in submitted_ids]
+    return [p for p in players
+            if _player_start_wordle_id(p, season) <= wordle_id
+            and p['id'] not in submitted_ids]

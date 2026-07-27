@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 
 import db.repository as db_repo
+from core import utils
 
 
 @app_commands.command(name="register", description="Join the active season in this channel")
@@ -24,7 +25,8 @@ async def register(interaction: discord.Interaction):
     db_repo.register_player(
         season['id'],
         interaction.user.id,
-        interaction.user.display_name
+        interaction.user.display_name,
+        joined_wordle_id=utils.calculate_wordle_id_of_the_day(),
     )
 
     await interaction.response.send_message(

@@ -44,6 +44,7 @@ def init_db():
                 discord_user_id INTEGER NOT NULL,
                 discord_username TEXT NOT NULL,
                 joined_at TEXT NOT NULL,
+                joined_wordle_id INTEGER,
                 UNIQUE(season_id, discord_user_id)
             );
 
@@ -62,15 +63,40 @@ def init_db():
                 UNIQUE(season_id, player_id, wordle_id)
             );
         """)
-        # Migrations for existing databases
-        try:
-            conn.execute("ALTER TABLE seasons ADD COLUMN recurring INTEGER NOT NULL DEFAULT 0")
-            logger.info("Migration: added 'recurring' column to seasons")
-        except Exception:
-            pass  # column already exists
-        try:
-            conn.execute("ALTER TABLE seasons ADD COLUMN season_number INTEGER NOT NULL DEFAULT 1")
-            logger.info("Migration: added 'season_number' column to seasons")
-        except Exception:
-            pass  # column already exists
+        # Migrations for existing databases. Check the schema explicitly so
+        # unrelated SQLite errors are not silently hidden.
+        migrations = [
+            ("seasons", "recurring", "INTEGER NOT NULL DEFAULT 0"),
+            ("seasons", "season_number", "INTEGER NOT NULL DEFAULT 1"),
+            ("players", "joined_wordle_id", "INTEGER"),
+        ]
+        for table, column, definition in migrations:
+            columns = {row['name'] for row in conn.execute(f"PRAGMA table_info({table})")}
+            if column not in columns:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+                logger.info("Migration: added '%s' column to %s", column, table)
+
+        # Repair any pre-existing race-created duplicates before enforcing the
+        # invariant. Keep the newest active record and archive older ones.
+        duplicate_channels = conn.execute(
+            "SELECT channel_id FROM seasons WHERE status = 'active' "
+            "GROUP BY channel_id HAVING COUNT(*) > 1"
+        ).fetchall()
+        for row in duplicate_channels:
+            active_ids = conn.execute(
+                "SELECT id FROM seasons WHERE channel_id = ? AND status = 'active' "
+                "ORDER BY id DESC",
+                (row['channel_id'],),
+            ).fetchall()
+            for duplicate in active_ids[1:]:
+                conn.execute(
+                    "UPDATE seasons SET status = 'cancelled' WHERE id = ?",
+                    (duplicate['id'],),
+                )
+
+        # A channel may have many historical seasons, but only one active one.
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS one_active_season_per_channel "
+            "ON seasons(channel_id) WHERE status = 'active'"
+        )
     logger.info("Database initialized")

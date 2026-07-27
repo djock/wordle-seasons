@@ -21,7 +21,10 @@ async def leaderboard(interaction: discord.Interaction):
     is_final = today_wordle_id >= utils.get_season_end_id(season)
 
     msg = bot_service.get_leaderboard(season, today_wordle_id, is_final=is_final)
-    await interaction.response.send_message(msg)
+    chunks = utils.split_message(msg)
+    await interaction.response.send_message(chunks[0])
+    for chunk in chunks[1:]:
+        await interaction.followup.send(chunk)
 
 
 @app_commands.command(name="history", description="Show past seasons in this channel")
@@ -44,4 +47,7 @@ async def history(interaction: discord.Interaction):
             f"({season['duration_days']}d){winner_text}{prize_text}"
         )
 
-    await interaction.response.send_message("\n".join(lines))
+    chunks = utils.split_message("\n".join(lines))
+    await interaction.response.send_message(chunks[0])
+    for chunk in chunks[1:]:
+        await interaction.followup.send(chunk)

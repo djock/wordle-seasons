@@ -60,3 +60,26 @@ def format_mentions(players) -> str:
 def get_season_display_name(season) -> str:
     """Return the season name with its number, e.g. 'Office Wars (#2)'."""
     return f"{season['name']} (#{season['season_number']})"
+
+
+def split_message(message: str, limit: int = 1900) -> list[str]:
+    """Split a Discord message without exceeding its 2,000-character limit."""
+    if len(message) <= limit:
+        return [message]
+    chunks = []
+    current = ""
+    for line in message.splitlines(keepends=True):
+        if len(line) > limit:
+            if current:
+                chunks.append(current.rstrip())
+                current = ""
+            for start in range(0, len(line), limit):
+                chunks.append(line[start:start + limit].rstrip())
+        elif len(current) + len(line) > limit:
+            chunks.append(current.rstrip())
+            current = line
+        else:
+            current += line
+    if current:
+        chunks.append(current.rstrip())
+    return chunks or [""]
