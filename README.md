@@ -8,7 +8,21 @@
   ![Python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white)
   ![discord.py](https://img.shields.io/badge/discord.py-2.0+-5865F2?logo=discord&logoColor=white)
   ![License](https://img.shields.io/badge/license-MIT-green)
+  ![Tests](https://img.shields.io/badge/tests-passing-brightgreen)
 </div>
+
+---
+
+## Quick Start (Docker)
+
+```bash
+git clone https://github.com/djock/wordle-seasons.git
+cd wordle-seasons
+cp .env.example .env.prod   # add BOT_TOKEN and WORDLE_BOT_ID
+docker-compose up prod -d
+```
+
+That's it — the bot is running. Invite it to your server, then use `/season create` in any channel.
 
 ---
 
@@ -54,6 +68,29 @@ Wordle Seasons Bot lets any Discord server run competitive Wordle seasons in any
 4. Once all registered players have submitted for the day, the bot posts the updated leaderboard.
 5. At midnight, the bot penalises any players who forgot to submit and finalizes the season when its last day passes.
 6. The winner is announced with medals, a congratulatory message, and the season prize.
+
+---
+
+## Example
+
+```
+# Player pastes their Wordle result:
+Wordle 1,245 3/6
+
+⬛🟨⬛⬛⬛
+🟩⬛🟨🟨⬛
+🟩🟩🟩🟩🟩
+
+# Bot responds instantly:
+✅ @Alice — Wordle 1245 solved in 3 attempts!
+Season score: 18 pts  •  Day 6 / 14
+
+# When everyone has submitted, leaderboard posts automatically:
+Office Wordle War — Day 6 / 14
+🥇 Alice:   18 pts
+🥈 Bob:     21 pts
+🥉 Charlie: 27 pts
+```
 
 ---
 
