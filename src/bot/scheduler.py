@@ -113,7 +113,7 @@ async def _process_season(season, yesterday_wordle_id: int):
             try:
                 await channel.send(
                     f"⏰ Auto-update: Added **{season['missed_day_penalty']}** penalty points "
-                    f"for missed Wordle days to {utils.format_mentions(list(missing_by_id.values()))}"
+                    f"for missed Wordle days to {utils.format_names(list(missing_by_id.values()))}"
                 )
                 lb = bot_service.get_leaderboard(season, yesterday_wordle_id)
                 for chunk in utils.split_message(lb):
