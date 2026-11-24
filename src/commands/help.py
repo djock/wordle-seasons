@@ -9,6 +9,7 @@ HELP_TEXT = """\
 `/season create` — start a new season in this channel (name, duration, prize, options)
 `/season cancel` — cancel the active season (creator only)
 `/season info` — show current season settings and status
+`/season notifications` — list the scheduled posts (true/false) and toggle each one
 
 **Players**
 `/register` — join the active season in this channel

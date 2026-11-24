@@ -8,6 +8,25 @@ from core.utils import get_season_display_name
 import db.repository as db_repo
 
 
+NOTIFICATION_LABELS = {
+    'reminder': '20:00 reminder (tags players who haven\'t played)',
+    'auto_update': 'Midnight auto-update (missed-day penalty post)',
+    'season_end': 'Season end (final results + renewal notice)',
+}
+
+
+def _notifications_message(season, updated: bool = False) -> str:
+    lines = [
+        f"{'✅ Notifications updated' if updated else '🔔 Notifications'} for "
+        f"**{get_season_display_name(season)}**:"
+    ]
+    for option, column in db_repo.NOTIFICATION_COLUMNS.items():
+        state = 'true' if season[column] else 'false'
+        lines.append(f"• `{option}`: **{state}** — {NOTIFICATION_LABELS[option]}")
+    lines.append("Change one with e.g. `/season notifications auto_update:False`.")
+    return "\n".join(lines)
+
+
 class SeasonGroup(app_commands.Group, name="season", description="Manage Wordle seasons"):
 
     @app_commands.command(name="create", description="Start a new Wordle season in this channel")
@@ -180,6 +199,52 @@ class SeasonGroup(app_commands.Group, name="season", description="Manage Wordle 
             f"#{utils.get_season_end_id(season)})\n"
             f"👥 Players: {len(players)}"
             f"{prize_line}{tetris_line}{penalty_line}{recurring_line}"
+        )
+
+    @app_commands.command(
+        name="notifications",
+        description="List the bot's scheduled posts and turn each one on or off",
+    )
+    @app_commands.describe(
+        reminder="20:00 reminder tagging players who haven't submitted today",
+        auto_update="Midnight post listing missed-day penalties (penalties still apply when off)",
+        season_end="Final results and recurring-season renewal notice",
+    )
+    async def notifications(
+        self,
+        interaction: discord.Interaction,
+        reminder: bool = None,
+        auto_update: bool = None,
+        season_end: bool = None,
+    ):
+        season = db_repo.get_active_season(interaction.channel_id)
+        if not season:
+            await interaction.response.send_message(
+                "No active season in this channel.", ephemeral=True
+            )
+            return
+
+        changing = any(v is not None for v in (reminder, auto_update, season_end))
+        if changing:
+            is_manager = getattr(
+                getattr(interaction.user, 'guild_permissions', None),
+                'manage_guild', False
+            )
+            if season['creator_id'] != interaction.user.id and not is_manager:
+                await interaction.response.send_message(
+                    "Only the person who created the season can change notifications.",
+                    ephemeral=True,
+                )
+                return
+            db_repo.set_notifications(
+                season['id'], reminder=reminder, auto_update=auto_update,
+                season_end=season_end,
+            )
+            season = db_repo.get_season(season['id'])
+
+        await interaction.response.send_message(
+            _notifications_message(season, updated=changing),
+            ephemeral=not changing,
         )
 
     @app_commands.command(name="update", description="Update the active season's name, prize, or number")

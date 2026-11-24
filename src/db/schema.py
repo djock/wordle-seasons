@@ -29,6 +29,8 @@ def init_db():
                 tetris_bonus_enabled INTEGER NOT NULL DEFAULT 1,
                 reminders_enabled INTEGER NOT NULL DEFAULT 1,
                 auto_penalty_enabled INTEGER NOT NULL DEFAULT 1,
+                auto_update_enabled INTEGER NOT NULL DEFAULT 1,
+                season_end_enabled INTEGER NOT NULL DEFAULT 1,
                 start_wordle_id INTEGER NOT NULL,
                 start_date TEXT NOT NULL,
                 end_date TEXT NOT NULL,
@@ -69,6 +71,8 @@ def init_db():
             ("seasons", "recurring", "INTEGER NOT NULL DEFAULT 0"),
             ("seasons", "season_number", "INTEGER NOT NULL DEFAULT 1"),
             ("players", "joined_wordle_id", "INTEGER"),
+            ("seasons", "auto_update_enabled", "INTEGER NOT NULL DEFAULT 1"),
+            ("seasons", "season_end_enabled", "INTEGER NOT NULL DEFAULT 1"),
         ]
         for table, column, definition in migrations:
             columns = {row['name'] for row in conn.execute(f"PRAGMA table_info({table})")}
