@@ -48,6 +48,7 @@ def test_process_season_catches_up_missed_days_and_finalizes(monkeypatch):
         'duration_days': 3,
         'channel_id': 1,
         'auto_penalty_enabled': 1,
+        'auto_update_enabled': 1,
         'missed_day_penalty': 10,
         'recurring': 0,
     }
@@ -103,3 +104,75 @@ def test_future_wordle_submission_is_rejected(monkeypatch):
 
     assert result.wordle_id is None
     assert 'has not been published yet' in result.message
+
+
+def test_midnight_penalties_apply_silently_when_auto_update_off(monkeypatch):
+    season = {
+        'id': 7,
+        'status': STATUS_ACTIVE,
+        'name': 'Spring',
+        'season_number': 1,
+        'start_wordle_id': 1000,
+        'duration_days': 10,
+        'channel_id': 1,
+        'auto_penalty_enabled': 1,
+        'auto_update_enabled': 0,
+        'missed_day_penalty': 10,
+        'recurring': 0,
+    }
+    players = [{'id': 11, 'discord_user_id': 101, 'discord_username': 'Ada'}]
+    channel = AsyncMock()
+    upsert = Mock()
+
+    monkeypatch.setattr(scheduler.bot_service, 'get_missing_players', lambda *_: players)
+    monkeypatch.setattr(scheduler.db_repo, 'upsert_score', upsert)
+
+    class Client:
+        def get_channel(self, _):
+            return channel
+
+    scheduler._client = Client()
+    asyncio.run(scheduler._process_season(season, 1001))
+
+    assert [call.args[2] for call in upsert.call_args_list] == [1000, 1001]
+    channel.send.assert_not_called()
+
+
+def test_finale_still_archives_but_is_silent_when_season_end_off(monkeypatch):
+    season = {
+        'id': 7,
+        'status': STATUS_ACTIVE,
+        'name': 'Spring',
+        'season_number': 1,
+        'start_wordle_id': 1000,
+        'duration_days': 3,
+        'channel_id': 1,
+        'recurring': 0,
+        'season_end_enabled': 0,
+    }
+    monkeypatch.setattr(scheduler.db_repo, 'get_season', lambda _: season)
+    monkeypatch.setattr(scheduler.db_repo, 'get_season_players', lambda _: [])
+    monkeypatch.setattr(scheduler.bot_service, 'get_sorted_player_scores', lambda _: [])
+    monkeypatch.setattr(scheduler.bot_service, 'build_leaderboard_message', lambda *a, **k: 'final')
+    update_status = Mock()
+    monkeypatch.setattr(scheduler.db_repo, 'update_season_status', update_status)
+    channel = AsyncMock()
+
+    asyncio.run(scheduler.finalize_season(season, channel))
+
+    update_status.assert_called_once()
+    channel.send.assert_not_called()
+
+
+def test_notifications_message_lists_each_flag():
+    from commands.season import _notifications_message
+
+    season = {
+        'name': 'Spring', 'season_number': 1, 'recurring': 0,
+        'reminders_enabled': 0, 'auto_update_enabled': 0, 'season_end_enabled': 1,
+    }
+    msg = _notifications_message(season)
+
+    assert '`reminder`: **false**' in msg
+    assert '`auto_update`: **false**' in msg
+    assert '`season_end`: **true**' in msg

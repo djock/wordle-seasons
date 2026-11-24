@@ -109,7 +109,8 @@ async def _process_season(season, yesterday_wordle_id: int):
                         is_auto_penalty=True
                     )
 
-        if missing_by_id and channel:
+        # Penalties are always recorded; only the post is optional.
+        if missing_by_id and channel and season['auto_update_enabled']:
             try:
                 await channel.send(
                     f"⏰ Auto-update: Added **{season['missed_day_penalty']}** penalty points "
@@ -146,7 +147,7 @@ async def finalize_season(season, channel):
     db_repo.update_season_status(season['id'], STATUS_COMPLETED, winner_id)
     logger.info(f"Season '{season['name']}' finalized, winner Discord ID: {winner_id}")
 
-    if channel:
+    if channel and season['season_end_enabled']:
         try:
             for chunk in utils.split_message(msg):
                 await channel.send(chunk)
@@ -181,6 +182,8 @@ async def _renew_season(season, previous_end_id: int, previous_players: list, ch
         end_date=end_date,
         recurring=True,
         season_number=new_season_number,
+        auto_update_enabled=season['auto_update_enabled'],
+        season_end_enabled=season['season_end_enabled'],
     )
 
     for player in previous_players:
@@ -194,7 +197,7 @@ async def _renew_season(season, previous_end_id: int, previous_players: list, ch
     display_name = utils.get_season_display_name(new_season)
     logger.info(f"Recurring season '{display_name}' renewed, new season ID: {new_season_id}")
 
-    if channel:
+    if channel and season['season_end_enabled']:
         try:
             renewal = (
                 f"🔄 **{display_name}** has been automatically renewed!\n"

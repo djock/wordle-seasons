@@ -30,19 +30,21 @@ def get_season(season_id: int):
 def create_season(channel_id, guild_id, creator_id, name, prize, duration_days,
                   missed_day_penalty, tetris_bonus_enabled, reminders_enabled,
                   auto_penalty_enabled, start_wordle_id, start_date, end_date,
-                  recurring=False, season_number: int = 1) -> int:
+                  recurring=False, season_number: int = 1,
+                  auto_update_enabled=True, season_end_enabled=True) -> int:
     with get_connection() as conn:
         cur = conn.execute(
             """INSERT INTO seasons
                (channel_id, guild_id, creator_id, name, prize, duration_days,
                 missed_day_penalty, tetris_bonus_enabled, reminders_enabled,
                 auto_penalty_enabled, start_wordle_id, start_date, end_date, status, recurring,
-                season_number)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                season_number, auto_update_enabled, season_end_enabled)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (channel_id, guild_id, creator_id, name, prize, duration_days,
              missed_day_penalty, int(tetris_bonus_enabled), int(reminders_enabled),
              int(auto_penalty_enabled), start_wordle_id, start_date, end_date, STATUS_ACTIVE,
-             int(recurring), season_number)
+             int(recurring), season_number, int(auto_update_enabled),
+             int(season_end_enabled))
         )
         return cur.lastrowid
 
@@ -68,6 +70,29 @@ def update_season(season_id: int, name: str = None, prize: str = None, season_nu
             f"UPDATE seasons SET {', '.join(fields)} WHERE id = ?",
             values
         )
+
+
+# Scheduled posts a season can switch on or off: option name -> seasons column.
+NOTIFICATION_COLUMNS = {
+    'reminder': 'reminders_enabled',
+    'auto_update': 'auto_update_enabled',
+    'season_end': 'season_end_enabled',
+}
+
+
+def set_notifications(season_id: int, **flags):
+    """Set any of the NOTIFICATION_COLUMNS flags; None leaves a flag unchanged."""
+    fields, values = [], []
+    for option, enabled in flags.items():
+        if enabled is None:
+            continue
+        fields.append(f"{NOTIFICATION_COLUMNS[option]} = ?")
+        values.append(int(enabled))
+    if not fields:
+        return
+    values.append(season_id)
+    with get_connection() as conn:
+        conn.execute(f"UPDATE seasons SET {', '.join(fields)} WHERE id = ?", values)
 
 
 def update_season_status(season_id: int, status: str, winner_id: Optional[int] = None):
